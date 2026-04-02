@@ -9,6 +9,10 @@ DEFAULT_HEADERS = {
 }
 #复用TCP连接，稳定
 session = requests.Session()
+final_cookies = {
+    "PHPSESSID":"gbi3503oe6cfjm26djf5o1s3m5",
+    "security":"low"
+}
 
 def get(url, headers=None, cookies=None, proxies=None, retries = 3,timeout=5,delay = (0.3,1.0)):
     # 合并请求头
@@ -18,18 +22,21 @@ def get(url, headers=None, cookies=None, proxies=None, retries = 3,timeout=5,del
         final_headers.update(headers)
     for i in range(retries):
         try:
+            start = time.time()
             #随机延迟
             time.sleep(random.uniform(*delay))
             #发起GET请求
-            r = requests.get(
+            r = session.get(
                 url,
                 headers=final_headers,
-                cookies=cookies,
+                cookies=final_cookies,
                 proxies=proxies,
                 timeout=timeout,
                 verify=False,  #忽略HTTPS验证
                 allow_redirects=True   #自动跟随301/302跳转
             )
+            elapsed = time.time() - start
+            r.elapsed_time = elapsed
             return r
 
         #超时
