@@ -3,16 +3,18 @@ import time
 import random
 from utils.logger import error
 
+#可配置cookies
+DEFAULT_COOKIES = {
+    "PHPSESSID":"k3ie254rasfbj5tv6hemd07595",
+    "security":"low"
+}
 # 定义默认统一请求头
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (WebScanner)"  #伪装成浏览器
 }
 #复用TCP连接，稳定
 session = requests.Session()
-final_cookies = {
-    "PHPSESSID":"gbi3503oe6cfjm26djf5o1s3m5",
-    "security":"low"
-}
+
 
 def get(url, headers=None, cookies=None, proxies=None, retries = 3,timeout=5,delay = (0.3,1.0)):
     # 合并请求头
@@ -20,11 +22,17 @@ def get(url, headers=None, cookies=None, proxies=None, retries = 3,timeout=5,del
     #用户传入header，覆盖默认值
     if headers:
         final_headers.update(headers)
+
+    #合并cookies：默认+传入
+    final_cookies = DEFAULT_COOKIES.copy()
+    if cookies:
+        final_cookies.update(cookies)
     for i in range(retries):
         try:
-            start = time.time()
-            #随机延迟
+            # 随机延迟
             time.sleep(random.uniform(*delay))
+            start = time.time()
+
             #发起GET请求
             r = session.get(
                 url,
@@ -35,15 +43,24 @@ def get(url, headers=None, cookies=None, proxies=None, retries = 3,timeout=5,del
                 verify=False,  #忽略HTTPS验证
                 allow_redirects=True   #自动跟随301/302跳转
             )
-            elapsed = time.time() - start
-            r.elapsed_time = elapsed
+            r.elapsed_time = time.time() - start
             return r
 
         #超时
         except requests.exceptions.Timeout:
-            error(f"请求超时: {url}")
+            error(f"请求超时({i+1}/{retries}):{url}")
             return None
         #异常
         except Exception as e:
-            error(f"请求失败: {url} | {str(e)}")
-            return None
+            error(f"请求失败({i+1}/{retries}): {url} | {e}")
+    return None
+
+def measure_time(url, repeat=3):
+    times = []
+    for _ in range(repeat):
+        r = get(url, timeout=10)
+        if not r:
+            continue
+        times.append(r.elapsed_time)
+
+    return times

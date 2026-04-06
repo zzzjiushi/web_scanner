@@ -1,6 +1,7 @@
 from utils.logger import info,error
 from core.context import ScanContext
-
+from core import requestor
+from modules.sqli import parse_url_params
 
 class Engine:
     def __init__(self):
@@ -10,7 +11,11 @@ class Engine:
 
     def register(self, module):
         # 动态扩展能力，插件化架构
-        self.modules.append(module)
+        if module not in self.modules:
+            self.modules.append(module)
+        else:
+            info(f"模块{getattr(module,'name',module.__name__)}已注册，跳过")
+
 
     def run(self, url):
         info(f"开始扫描 → {url}")
@@ -18,8 +23,6 @@ class Engine:
         #创建上下文
         context = ScanContext(url)
         #统一初始化
-        from modules.sqli import parse_url_params  #临时
-        from core import requestor
         context.parsed,context.params = parse_url_params(url)
         context.base_response = requestor.get(url)
 
@@ -42,8 +45,8 @@ class Engine:
                     else:
                         context.results.append(res) #append加入
             except Exception as e:
-                error(f"模块异常:{module.__name__} | {e}")
+                module_name = getattr(module,'name',str(module))
+                error(f"模块异常:{module_name} | {e}")
 
         info(f"扫描完成，发现 {len(context.results)} 个漏洞")
-        
         return context.results

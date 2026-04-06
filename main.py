@@ -1,6 +1,7 @@
 import argparse
 from core.engine import Engine
-from modules import sqli, rce
+from modules import sqli, rce, xss
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -11,7 +12,7 @@ def main():
     
     # 插件注册：想加什么漏洞就加什么
     engine.register(sqli)
-    
+    engine.register(xss)
 
     result = engine.run(args.url)
 

@@ -42,9 +42,9 @@ def time_based_analysis(baseline_times,ts_sleep,ts_normal):
     if not ts_sleep or not ts_normal:
         return False
 
-    avg_base = sum(baseline_times) / len(baseline_times) if baseline_times else 0
-    avg_sleep = sum(ts_sleep) / len(ts_sleep) if ts_sleep else 0
-    avg_normal = sum(ts_normal) / len(ts_normal) if ts_normal else 0
+    avg_base = avg(baseline_times)
+    avg_sleep = avg(ts_sleep)
+    avg_normal = avg(ts_normal)
 
     diff_delay = avg_sleep - avg_normal
     #抗噪声（标准差）
@@ -124,3 +124,52 @@ def union_based_analysis(base_text, union_texts, similarity, mark):
         score += 20
 
     return score >= 60
+
+#----------------------------XSS------------------------
+def detect_xss_context(text,marker):
+    pos = text.find(marker)
+    if pos == -1:
+        return None
+    snippet = text[max(0,pos - 60):pos + 60]
+    #JS
+    if re.search(r"<script.*?>.*" + marker + r".*</script>",text,re.S):
+        return "js"
+    #属性
+    if re.search(r'=\s*".*' + marker + r'.*"'):
+        return "attr_double"
+    if re.search(r"=\s*'.*" + marker + r".*'",snippet):
+        return "attr_single"
+    #HTML
+    if re.search(r">[^<]*" + marker + r"[^<]*<",snippet):
+        return "html"
+    return "unknown"
+
+def generate_xss_payload(context):
+    payloads = []
+
+    if context == "html":
+        payloads.append("<img src=x onerror=alert(1)>")
+    elif context == "attr_double":
+        payloads.append('" onmouseover=alert(1) "')
+    elif context == "attr_single":
+        payloads.append("' onmouseover=alert(1) '")
+    elif context == "js":
+        payloads.append('";alert(1);//')
+    return [
+        "<img src=x onerror=alert(1)>",
+        "<svg/onload=alert(1)>",
+        "<script>alert(1)</script>"
+    ]
+
+def xss_analysis(base_text, test_text, payload):
+    # 只要payload原样返回，直接判定（先跑通）
+    if payload in test_text:
+        return True
+
+    # 编码检测（低置信）
+    encoded = payload.replace("<", "&lt;").replace(">", "&gt;")
+    if encoded in test_text:
+        return False
+
+    return False
+
